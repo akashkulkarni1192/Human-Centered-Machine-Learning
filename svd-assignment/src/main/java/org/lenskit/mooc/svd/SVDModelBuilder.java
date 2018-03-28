@@ -62,6 +62,7 @@ public class SVDModelBuilder implements Provider<SVDModel> {
         KeyIndex itemIndex = FrozenHashKeyIndex.create(dao.getEntityIds(CommonTypes.ITEM));
 
         HashMap<Long, Double> itemPopularity =  calculateItemPopularity();
+        Double thresholdPopularity = calculateThresholdPopularity(itemPopularity, 0.3);
 //        writeItemPopularity(itemPopularity);
         RealMatrix matrix = createRatingMatrix(userIndex, itemIndex, itemPopularity);
         int noOfUsers = dao.query(Rating.class).valueSet(CommonAttributes.USER_ID).size();
@@ -69,7 +70,7 @@ public class SVDModelBuilder implements Provider<SVDModel> {
 //        List<MyRating> ratingList = createRatingMatrix(userIndex, itemIndex, itemPopularity);
         // Second, compute its factorization
         logger.info("factorizing matrix at popularity weight : "+popularityWeight);
-        MySingularValueDecomposition svd = new MySingularValueDecomposition(matrix, featureCount, itemPopularity, noOfUsers, noOfItems, itemIndex);
+        MySingularValueDecomposition svd = new MySingularValueDecomposition(matrix, featureCount, itemPopularity, noOfUsers, noOfItems, itemIndex, thresholdPopularity);
         RealMatrix userMatrix = svd.getUserMatrix();
         RealMatrix itemMatrix = svd.getItemMatrix();
         RealVector weights = MatrixUtils.createRealVector(new double[featureCount]);
@@ -107,6 +108,37 @@ public class SVDModelBuilder implements Provider<SVDModel> {
                 userMatrix, itemMatrix,
                 weights, itemPopularity, popularityWeight);
     }
+
+    public static <K, V extends Comparable<? super V>> Map<K, V> sortByValue(Map<K, V> map) {
+        List<Map.Entry<K, V>> list = new ArrayList<>(map.entrySet());
+        list.sort((o1, o2) -> o1.getValue().compareTo(o2.getValue()));
+
+        Map<K, V> result = new LinkedHashMap<>();
+        for (Map.Entry<K, V> entry : list) {
+            result.put(entry.getKey(), entry.getValue());
+        }
+
+        return result;
+    }
+
+    public Double calculateThresholdPopularity(HashMap<Long, Double> itemPopularity, Double percentile){
+        Double threshold = 0.0;
+
+        List<Map.Entry<Long, Double>> list = new ArrayList<>(itemPopularity.entrySet());
+        list.sort((o1, o2) -> o2.getValue().compareTo(o1.getValue()));
+        HashMap<Long, Double> sortedItemPopularity = new LinkedHashMap<>();
+        double cut = percentile * list.size();
+        for (Map.Entry<Long, Double> entry : list) {
+            if(cut == 0) {
+                threshold = entry.getValue();
+                break;
+            }
+            sortedItemPopularity.put(entry.getKey(), entry.getValue());
+            cut--;
+        }
+        return threshold;
+    }
+
     public HashMap<Long, Double> calculateItemPopularity(){
         HashMap<Long, Double> itemPop = new HashMap<>();
         try (ObjectStream<Rating> ratings = dao.query(Rating.class)
