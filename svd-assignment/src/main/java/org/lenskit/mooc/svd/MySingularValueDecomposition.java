@@ -101,29 +101,41 @@ public class MySingularValueDecomposition {
                         double[] u = userMatrix.getRow(i);
                         double[] v = itemMatrix.getRow(j);
 //                        error = Math.pow((rating - dotProduct(u,v)),2); //
+                        long itemId = itemIndex.getKey(j);
+                        double itemPop = itemPopularity.get(itemId);
+//                        if(itemPop >= thresholdPopularity)
+//                            rating = rating - 1;
                         error = rating - dotProduct(u,v);
                         totalerror += Math.pow(error,2);
                         //Math.pow(dotProduct(u, v), 2);
-                        long itemId = itemIndex.getKey(j);
-                        //weight = weight + alpha * (Math.pow(itemPopularity.get(itemId)-TARGET_POP, 2) - Math.pow(error , 2));
 
-                        for(int k=0; k<featureCount; k++){
-                            u[k] = u[k] + alpha * (2 * weight * error * v[k] - beta * u[k]);
-                            v[k] = v[k] + alpha * (2 * weight * error * u[k] - beta * v[k]);
+                        //weight = weight + alpha * (Math.pow(itemPopularity.get(itemId)-TARGET_POP, 2) - Math.pow(error , 2));
+                        if(dotProduct(u,v) > 5.0 || itemPop > 5) {
+                            for (int k = 0; k < featureCount; k++) {
+//                            u[k] = u[k] + alpha * (2 * weight * error * v[k] - beta * u[k]);
+//                            v[k] = v[k] + alpha * (2 * weight * error * u[k] - beta * v[k]);
+                                u[k] = u[k] + alpha * (2 * error * v[k] - v[k] * (itemPop - 4.0) - beta * u[k]);
+                                v[k] = v[k] + alpha * (2 * error * u[k] - u[k] * (itemPop - 4.0) - beta * v[k]);
+                            }
+                        }
+                        else {
+                            for(int k=0; k<featureCount; k++){
+                                u[k] = u[k] + alpha * (2 * error * v[k] - beta * u[k]);
+                                v[k] = v[k] + alpha * (2 * error * u[k] - beta * v[k]);
+                            }
                         }
 
                         userMatrix.setRow(i, u);
                         itemMatrix.setRow(j, v);
-                        double itemPop = itemPopularity.get(itemId);
 
                         //CHANGES REQUIRED HERE AND OTHER PLACES ABOVE
-                        if(itemPop >= thresholdPopularity)
-                            objective = weight * Math.pow(rating-dotProduct(u, v), 2) + (1 - weight) * Math.pow(itemPop - TARGET_POP, 2);
-                        totalObjective += objective;
+//                        if(itemPop >= thresholdPopularity)
+//                            objective = weight * Math.pow(rating-dotProduct(u, v), 2) + (1 - weight) * Math.pow(itemPop - TARGET_POP, 2);
+//                        totalObjective += objective;
                     }
 
                 }
-                System.out.format("\n i:%d  Objective :%f  weight : %f",i, totalObjective, weight);
+                //System.out.format("\n i:%d  Objective :%f  weight : %f",i, totalerror, weight);
 
 
             }
