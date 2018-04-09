@@ -87,6 +87,9 @@ public class MySingularValueDecomposition {
         double weight = 0.5;
         double totalObjective = 0.0;
         int count = 0;
+
+        //Test Commit
+
         for(int step = 1; step <= MAX_ITERATION; step++){
             totalerror = 0.0;
             count = 0;
